@@ -10,7 +10,11 @@ int ch2;
 long lastUpdate = 0;
 int updateFreq = 100; 
 int degree = 0;
-int velocity = 0;
+float masterVelocity = 0;
+float targetVelocity[3];
+
+float stepVel[3];
+
 String inputString = "";  
 boolean stringComplete = false;
 
@@ -55,9 +59,27 @@ void setup()
 }
 
 void updateMotors(){
-  stepper1.setSpeed(degreeTable[degree][0]*velocity);
-  stepper2.setSpeed(degreeTable[degree][1]*velocity);
-  stepper3.setSpeed(degreeTable[degree][2]*velocity);
+  float currentSpeed[3];
+  float stepperSpeed[3];
+  currentSpeed[0] = stepper1.speed();
+  currentSpeed[1] = stepper2.speed();
+  currentSpeed[2] = stepper3.speed();
+
+  stepperSpeed[0] = currentSpeed[0];
+  stepperSpeed[1] = currentSpeed[1];
+  stepperSpeed[2] = currentSpeed[2];
+
+  for (int i = 0; i < 3; i++){
+    if (stepVel[i] > 0 && currentSpeed[i] + stepVel[i] <= targetVelocity[i]) {
+      stepperSpeed[i] = currentSpeed[i] + stepVel[i];  
+    } else if (stepVel[i] < 0 && currentSpeed[i] + stepVel[i] >= targetVelocity[i]) {
+      stepperSpeed[i] = currentSpeed[i] + stepVel[i];  
+    }
+  }
+  
+  stepper1.setSpeed(stepperSpeed[0]);
+  stepper2.setSpeed(stepperSpeed[1]);
+  stepper3.setSpeed(stepperSpeed[2]);
 }
 
 int d2r(int degree){
@@ -74,17 +96,21 @@ void loop()
     char *dir[10];
     dir[0] = strtok(str, ",");
     dir[1] = strtok (NULL, ",;");
+ 
+    degree = charToInt(dir[0]);
+    masterVelocity = charToInt(dir[1]) * 40;
     
-    for(int i = 0; i < 2; i++){
-        Serial.println(dir[i]);  
-    }
+    targetVelocity[0] = degreeTable[degree][0]*masterVelocity;
+    targetVelocity[1] = degreeTable[degree][1]*masterVelocity;
+    targetVelocity[2] = degreeTable[degree][2]*masterVelocity;
 
-    degree = charToInt(dir[0]) % 12;
-    velocity = charToInt(dir[1]) * 40;
-    updateMotors();
+    stepVel[0] = (targetVelocity[0] - stepper1.speed())/1000;
+    stepVel[1] = (targetVelocity[1] - stepper2.speed())/1000;
+    stepVel[2] = (targetVelocity[2] - stepper3.speed())/1000;
+    
     inputString = "";
   }
-
+    updateMotors();
     stepper1.runSpeed();
     stepper2.runSpeed();
     stepper3.runSpeed();
